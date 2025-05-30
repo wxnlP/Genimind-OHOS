@@ -13,5 +13,6 @@ int MqttTaskSubscribe(char* topic);
 int MqttTaskUnSubscribe(char* topic);
 int MqttTaskPublish(char *topic, char *payload);
 int MqttTaskDisconnect(void);
+int MqttTaskIsConnected(void);
 
 #endif

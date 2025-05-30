@@ -25,7 +25,7 @@ static Network network = {0};
 static unsigned char sendbuf[1024], readbuf[1024];
 
 // 标识任务循环运行与否
-static int running = 3;
+static int running = 1;
 
 
 /**
@@ -62,7 +62,7 @@ static void MqttTask(void* arg)
         // 客户端连接成功
         if (pClient->isconnected) {
             // 维持 MQTT 客户端的后台通信(MQTTClient.h)
-            MQTTYield(pClient, 100);
+            MQTTYield(pClient, 10);
         }
         /* 释放互斥锁 */
         mqttMutexUnlock(&pClient->mutex);
@@ -87,10 +87,14 @@ void MqttTaskInit(void)
     // 客户端初始化(MQTTClient.h)
     MQTTClientInit(&client, &network, 100, sendbuf, sizeof(sendbuf), readbuf, sizeof(readbuf));
 
+    running = 1;
+
     /* 创建MQTT线程 */
     // paho_mqtt对创建线程操作进行了一个简单的封装
-    ThreadStart(&client.thread, MqttTask, &client);
-    LOGI("[INFO] MqttTaskInit done!");
+    int rc = ThreadStart(&client.thread, MqttTask, &client);
+    if (rc == 0) {
+        LOGI("[INFO] MqttTaskInit done!");
+    }
 }
 
 /**
@@ -293,79 +297,14 @@ int MqttTaskDisconnect(void)
     return 0;
 }
 
-
-
-
-
-/* json解析示例 */
-/*
-SmartLockMsg lock_msg;
-cJSON* root = cJSON_Parse((char*)data->message->payload);
-if (!root) {
-    printf("[ERROR] JSON parse error\r\n");
-    return;
-}
-// 1. 提取 object_device_id
-cJSON* obj_id = cJSON_GetObjectItem(root, "object_device_id");
-if (cJSON_IsString(obj_id)) {
-    printf("[INFO] Device ID: %s\r\n", obj_id->valuestring);
+/**
+ * @brief 判断MQTT服务器是否连接中
+ * 
+ * @return MQTT连接中返回 1 ，否则返回 0
+ */
+int MqttTaskIsConnected(void)
+{
+    return MQTTIsConnected(&client);
 }
 
-// 2. 处理 shadow 数组
-cJSON* shadow_arr = cJSON_GetObjectItem(root, "shadow");
-if (cJSON_IsArray(shadow_arr) && cJSON_GetArraySize(shadow_arr) > 0) {
-    cJSON* first_entry = cJSON_GetArrayItem(shadow_arr, 0);
 
-    // 2.1 提取 service_id
-    cJSON* service_id = cJSON_GetObjectItem(first_entry, "service_id");
-    if (cJSON_IsString(service_id)) {
-        printf("[INFO] Service ID: %s\r\n", service_id->valuestring);
-    }
-
-    // 2.2 处理 desired 属性
-    cJSON* desired = cJSON_GetObjectItem(first_entry, "desired");
-    if (desired) {
-        cJSON* props = cJSON_GetObjectItem(desired, "properties");
-        cJSON* lock = cJSON_GetObjectItem(props, "lock");
-        // 处理字符串属性
-        if (cJSON_IsString(lock)) {
-            printf("[INFO] Desired lock status (string): %s\r\n", lock->valuestring);
-        }
-        // 处理布尔类型
-        else if (cJSON_IsBool(lock)) {
-            lock_msg.desired_lock = lock->valueint;
-            printf("[INFO] Desired lock status (bool): %s\r\n", lock->valueint ? "True":"False");
-        }
-        // 处理数值
-        else if (cJSON_IsNumber(lock)) {
-            printf("[INFO] Desired lock status (number): %d\r\n", lock->valueint);
-        }
-    }
-    // 2.3 处理 reported 属性
-    cJSON* reported = cJSON_GetObjectItem(first_entry, "reported");
-    if (reported) {
-        cJSON* props = cJSON_GetObjectItem(reported, "properties");
-        cJSON* lock = cJSON_GetObjectItem(props, "lock");
-        // 处理字符串属性
-        if (cJSON_IsString(lock)) {
-            printf("[INFO] Desired lock status (string): %s\r\n", lock->valuestring);
-        }
-        // 处理布尔类型
-        else if (cJSON_IsBool(lock)) {
-            lock_msg.reported_lock = lock->valueint;
-            printf("[INFO] Desired lock status (bool): %s\r\n", lock->valueint ? "True":"False");
-        }
-        // 处理数值
-        else if (cJSON_IsNumber(lock)) {
-            printf("[INFO] Desired lock status (number): %d\r\n", lock->valueint);
-        }
-    }
-    // 2.4 提取版本号
-    cJSON* version = cJSON_GetObjectItem(first_entry, "version");
-    if (cJSON_IsNumber(version)) {
-        printf("[INFO] Version: %d\r\n", version->valueint);
-    }
-}
-cJSON_Delete(root);
-
-*/
