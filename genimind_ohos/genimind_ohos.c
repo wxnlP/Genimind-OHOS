@@ -203,16 +203,18 @@ static void MqttDataUploadTask(void* arg)
     printf("\r\n");
     printf("[MQTT INFO] 成功连接MQTT服务器\r\n");
 
-    // /* 订阅主题 */ 
-    // printf("[MQTT INFO] 等待订阅话题\r\n");
-    // while (MqttTaskSubscribe(MQTT_SubscribeTopic) != 0) {
-    //     printf(".");
-    //     osDelay(5);
-    // }
-    // printf("\r\n");
-    // printf("[MQTT INFO] 成功订阅话题\r\n");
     while (1)
     {
+        /* 检测MQTT服务器连接状态 */
+        printf("[DEBUG] MQTT 服务器状态: %d\n", MqttTaskIsConnected());
+        if (MqttTaskIsConnected() != 1) {
+            printf("[MQTT INFO] 尝试重新连接MQTT服务器\r\n");
+            while (MqttTaskConnect(MQTT_HOST, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWD) != 0) {
+                osDelay(5);
+            }
+            printf("[MQTT INFO] 成功重新连接MQTT服务器\r\n");
+        }
+
         /* 发布消息 */
         char* payload = NULL;
         if (osMutexAcquire(g_mutexFall, 0) == osOK) {
@@ -238,7 +240,7 @@ static void MqttDataUploadTask(void* arg)
         }
         if (payload != NULL) {
             MqttTaskPublish(MQTT_PublishTopic, payload); 
-            free(payload);
+            cJSON_free(payload);
         }
         
         // if (rc != 0) {
@@ -344,7 +346,7 @@ static void UartTask(void* arg)
 static void GenimindEntry(void)
 {
     MutexInit();
-    ThreadNew("mqttTask", MqttDataUploadTask, 20480);
+    ThreadNew("mqttTask", MqttDataUploadTask, 10240);
     ThreadNew("dataGetTask", DataGetTask, 1024*3);
     ThreadNew("uartTask", UartTask, 1024);
 }
