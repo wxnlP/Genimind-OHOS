@@ -136,6 +136,7 @@ int MqttTaskConnect(const char *host, unsigned short port,
     rc = NetworkConnect(&network, (char*)host, port);
     if (rc != 0) {
         // 连接失败，输出日志并返回-1
+        NetworkDisconnect(&network);
         LOGI("[ERROR] NetworkConnect is %d", rc);
         return -1;
     }

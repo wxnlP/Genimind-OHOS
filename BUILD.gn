@@ -23,5 +23,5 @@ lite_component("app") {
     "easy_wifi/src:easy_wifi",
     "aht20",
     "genimind_ohos"
-]
+  ]
 }
